@@ -1,3 +1,10 @@
-# Peng_Lx
+![banner](github-metrics.svg)
 
-![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=PengLx&layout=compact&theme=tokyonight)
+## :eyes: WHO AM I
+* You can call me simple because it was my real name pronounce
+* AI Engineer
+* Software Engineer
+* A College student
+
+## 📫 CONTACT ME
+* E-mail: chspenglx@gmail.com
