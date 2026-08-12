@@ -1,44 +1,52 @@
-# Visit https://github.com/lowlighter/metrics#-documentation for full reference
-name: Metrics
-on:
-  # Schedule updates (each hour)
-  schedule: [{cron: "0 * * * *"}]
-  # Lines below let you run workflow manually and on each commit
-  workflow_dispatch:
-  push: {branches: ["master", "main"]}
-jobs:
-  github-metrics:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: lowlighter/metrics@latest
-        with:
-          # Your GitHub token
-          # The following scopes are required:
-          #  - public_access (default scope)
-          # The following additional scopes may be required:
-          #  - read:org      (for organization related metrics)
-          #  - read:user     (for user related data)
-          #  - read:packages (for some packages related data)
-          #  - repo          (optional, if you want to include private repositories)
-          token: ${{ secrets.METRICS_TOKEN }}
+# MakeItBeauty — profile refresh workflow (project: penglx)
+#
+# KEEPALIVE NOTE: GitHub disables scheduled workflows after ~60 days without
+# repo activity; any commit or re-enabling the workflow resets the clock.
 
-          # Options
-          user: PengLx
-          template: classic
-          base: header, activity, community, repositories, metadata
-          config_timezone: Asia/Shanghai
-          plugin_isocalendar: yes
-          plugin_isocalendar_duration: half-year
-          plugin_languages: yes
-          plugin_languages_analysis_timeout: 15
-          plugin_languages_analysis_timeout_repositories: 7.5
-          plugin_languages_categories: markup, programming
-          plugin_languages_colors: github
-          plugin_languages_limit: 8
-          plugin_languages_recent_categories: markup, programming
-          plugin_languages_recent_days: 14
-          plugin_languages_recent_load: 300
-          plugin_languages_sections: most-used
-          plugin_languages_threshold: 0%
+name: Refresh MakeItBeauty images
+
+on:
+  schedule:
+    # Off-the-hour on purpose: on-the-hour crons queue behind everyone else's.
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render penglx
+        uses: makeitbeauty/action@v0
+        with:
+          api-url: https://makeitbeauty.org
+          project: penglx
+          deploy-token: ${{ secrets.MAKEITBEAUTY_DEPLOY_TOKEN }}
+          output: default
+          path: rendered/assets/card.svg
+
+      - name: Commit to output branch
+        # The output branch is kept at a SINGLE forced commit: no history
+        # accumulates, and bot commits never touch your default branch or
+        # contribution graph. Renders are deterministic, so the push is
+        # skipped entirely when nothing changed.
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin output || true
+          git checkout --orphan output
+          git rm -rf --quiet .
+          cp -r rendered/. .
+          rm -rf rendered
+          git add -A
+          if git diff --quiet "origin/output" -- 2>/dev/null; then
+            echo "No changes — skipping commit."
+            exit 0
+          fi
+          git -c user.name="makeitbeauty[bot]" \
+              -c user.email="bot@makeitbeauty.dev" \
+              commit -m "render: refresh images"
+          git push --force origin output
